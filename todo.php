@@ -1,111 +1,192 @@
 <?php
-session_start();
-// Einbinden der Datenbankkonfiguration
+
 require 'inc/db.php';
+session_start();
 
-// Fehler- und Erfolgsmeldungen initialisieren
-$error_message = "";
-$success_message = "";
+// Handle login form submission
+if (isset($_POST['login'])) {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
 
-// Prüfen, ob Formulardaten per POST-Methode empfangen wurden
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Erfassen der Benutzereingaben
-    $user = $_POST['Benutzername'];
-    $pass = $_POST['password'];
+    // Query to find the user by username and password
+    $sql = "SELECT id, name FROM user_table WHERE name = ? AND password = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ss", $username, $password);
+    $stmt->execute();
+    $stmt->store_result(); // Store result so we can check the number of rows
 
-    // Abfrage, um zu prüfen, ob Benutzername und Passwort in der Datenbank vorhanden sind
-    $sql = "SELECT * FROM user_table WHERE name = '$user' LIMIT 1";
-    $result = $conn->query($sql);
-
-    if ($result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-
-        if ($pass === $row['password']) {
-         
-            $success_message = "Anmeldung erfolgreich!";
-            
-        } else {
-            // Passwort ist inkorrekt
-            $error_message = "Ungültiger Benutzername oder Passwort.";
-        }
+    if ($stmt->num_rows > 0) {
+        // Login successful, store the user id in session
+        $stmt->bind_result($user_id, $user_name); // Bind the result variables
+        $stmt->fetch(); // Fetch the data
+        $_SESSION['userid'] = $user_id;
+        $_SESSION['username'] = $user_name;
+        $message = "Login successful";
     } else {
-        // Benutzer nicht gefunden
-        $error_message = "Ungültiger Benutzername oder Passwort.";
+        $message = "Invalid username or password";
     }
 }
-// Fetch to-do items for the logged-in user
-$stmt = $conn->prepare("SELECT todo, Datum FROM todo_table WHERE UserId = ? ORDER BY Datum DESC");
-$stmt->bind_param("i", $user);
-$stmt->execute();
-$result = $stmt->get_result();
-$todos = $result->fetch_all(MYSQLI_ASSOC);
+
+// Handle logout
+if (isset($_POST['logout'])) {
+    session_unset();
+    session_destroy();
+    $message = "You have logged out successfully";
+}
+
+// Handle adding a new todo
+if (isset($_POST['add_todo']) && isset($_SESSION['userid'])) {
+    $todo = $_POST['todo'];
+    $userid = $_SESSION['userid'];
+    $todo_date = date('Y-m-d');  // Get today's date in YYYY-MM-DD format
+
+    // Insert the new todo into the todo_table
+    $sql = "INSERT INTO todo_table (UserId, todo, Datum) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("iss", $userid, $todo, $todo_date);
+    
+    if ($stmt->execute()) {
+        $message = "To-do added successfully!";
+    } else {
+        $message = "Error adding to-do.";
+    }
+}
+
+// Delete all todo entries
+if (isset($_POST['DelAll']) && isset($_SESSION['userid'])) {
+    //$todo = $_POST['todo'];
+    $userid = $_SESSION['userid'];
+    //$todo_date = date('Y-m-d');  // Get today's date in YYYY-MM-DD format
+
+    // Insert the new todo into the todo_table
+    $sql = "DELETE FROM todo_table WHERE UserId = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $userid);
+    
+    if ($stmt->execute()) {
+        $message = "Alle To-Dos gelöscht!";
+    } else {
+        $message = "Fehler beim löschen!";
+    }
+}
+
+// Delete single to by clicking
+if (isset($_POST['id']) && isset($_SESSION['userid'])) {
+    $id = $_POST['id'];
+    $userid = $_SESSION['userid'];
+
+    $sql = "DELETE FROM todo_table WHERE id = ? AND UserId = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ii", $id, $userid);
+
+    if ($stmt->execute()) {
+        echo "success";
+    } else {
+        echo "error";
+    }
+    exit;
+}
+
+// Retrieve todos if logged in
+$todos_result = [];
+if (isset($_SESSION['userid'])) {
+    $userid = $_SESSION['userid'];
+    $sql = "SELECT id, todo, Datum FROM todo_table WHERE UserId = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $userid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $todos_result[] = $row;
+    }
+}
 
 ?>
 
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Form</title>
-    
+    <title>Todo App - Login</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
+    <h1>Todo Application</h1>
 
-    <div class="form-container">
-       
-       
- <?php 
-      if (isset($success_message)) {
-        echo "<p style='color: green;'>$success_message</p>";
-        }
+    <?php if (isset($message)) { echo "<p>$message</p>"; } ?>
 
-    // Fehlermeldung anzeigen, wenn die Anmeldung fehlschlägt
-    if (isset($error_message)) {
-    echo "<p style='color: red;'>$error_message</p>";
-    }
- ?>
+    <?php if (!isset($_SESSION['userid'])) { ?>
+        <!-- Login Form -->
+        <form action="todo.php" method="POST">
+            <label for="username">Username:</label>
+            <input type="text" name="username" id="username" required><br><br>
 
-        <!-- Login form -->
-        <form method="POST" action="">
-            <label for="Benutzername">Benutzername:</label>
-            <input type="text" name="Benutzername" placeholder="name" required>
             <label for="password">Password:</label>
-            <input type="password" name="password" placeholder="" required>
-            <button type="submit">-></button>
+            <input type="password" name="password" id="password" required><br><br>
+
+            <button type="submit" name="login">Login</button>
         </form>
-    </div>
+    <?php } else { ?>
+        <!-- Logout Button -->
+        <form action="todo.php" method="POST">
+            <button type="submit" name="logout">Logout</button>
+        </form>
 
-    <?php if (!empty($todos)) : ?>
-        <ul>
-            <?php foreach ($todos as $todo) : ?>
-                <li>
-                    <?php echo htmlspecialchars($todo['todo'], ENT_QUOTES, 'UTF-8'); ?> 
-                    - <small><?php echo htmlspecialchars($todo['Datum'], ENT_QUOTES, 'UTF-8'); ?></small>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    <?php else : ?>
-        <p>Keine Daten vorhanden.</p>
-    <?php endif; ?>
+        <h2>Your To-Do List</h2>
 
-    <h3>Neue Aufgabe hinzufügen</h3>
-    <form method="POST" action="">
-        <label for="todo">Aufgabe:</label>
-        <input type="text" name="todo" id="todo" placeholder="Neue Aufgabe eingeben" required>
-        <button type="submit">Hinzufügen</button>
-    </form>
+        <!-- Form to Add a New Todo -->
+        <form action="todo.php" method="POST">
+            <label for="todo">New To-Do:</label>
+            <input type="text" name="todo" id="todo" required><br><br>
 
-    <button id="logout-button">Abmelden</button>
+            <button type="submit" name="add_todo">Add To-Do</button>
+        </form>
+
+        <?php if (count($todos_result) > 0) { ?>
+            <ul>
+                <?php foreach ($todos_result as $todo_data) { ?>
+                    <li>
+                        <?php echo htmlspecialchars($todo_data['Datum']) . " - " . htmlspecialchars($todo_data['todo']); ?>
+                        <a href="#" class="delete-btn" data-id="<?php echo $todo_data['id']; ?>">×</a>
+                    </li>
+                <?php } ?>
+            </ul>
+    <?php   } else {
+            echo "<p>No data found</p>";
+        }
+        ?>
+    <?php } ?>
 
     <script>
-        document.getElementById('logout-button').addEventListener('click', () => {
-            // Mock logout for SPA
-            <?php session_destroy(); ?>
-            loginForm.classList.remove('hidden');
-            todoSection.classList.add('hidden');
+        $(document).on('click', '.delete-btn', function(e) {
+            e.preventDefault();
+            const todoId = $(this).data('id');
+
+            if (confirm('Are you sure you want to delete this todo?')) {
+                $.ajax({
+                    url: 'todo.php',
+                    type: 'POST',
+                    data: { id: todoId },
+                    success: function(response) {
+                        if (response.trim() === "success") {
+                            alert('To-Do deleted successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error deleting To-Do. Please try again.');
+                        }
+                    }
+                });
+            }
         });
-    </script>
+    </script>   
 
 </body>
 </html>
+
+<?php
+// Close the database connection
+$conn->close();
+?>
+
