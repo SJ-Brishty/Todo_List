@@ -93,7 +93,6 @@ if (isset($_SESSION['userid'])) {
         $todos_result[] = $row;
     }
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -148,10 +147,8 @@ if (isset($_SESSION['userid'])) {
         <form action="todo.php" method="POST">
             <button type="submit" name="DelAll">alle TO-DOs löschen</button>
         </form>
-
              
-        <!-- Logout Button -->
-        
+        <!-- Logout Button -->        
         <form action="todo.php" method="POST">
             <button type="submit" name="logout">Logout</button>
         </form> </div>
@@ -179,10 +176,8 @@ if (isset($_SESSION['userid'])) {
             }
         });
     </script>   
-
 </body>
 </html>
-
 <?php
 // Datenbankverbindung schließen
 $conn->close();
