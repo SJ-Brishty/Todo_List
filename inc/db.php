@@ -1,14 +1,14 @@
 <?php
-// Database configuration
+// Datenbankkonfiguration
 $host = "localhost";
 $username = "root";   
 $password = "";       
 $database = "mariadb";
 
-// Create a connection
+// Verbindung erstellen
 $conn = new mysqli($host, $username, $password, $database);
 
-// Check the connection
+// Verbindung Testen
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 } else {
