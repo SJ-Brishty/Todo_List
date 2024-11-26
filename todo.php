@@ -21,7 +21,7 @@ if (isset($_POST['login'])) {
         $stmt->fetch(); // Fetch the data
         $_SESSION['userid'] = $user_id;
         $_SESSION['username'] = $user_name;
-        $message = "Login successful";
+        //$message = "Login successful";
     } else {
         $message = "Invalid username or password";
     }
@@ -47,6 +47,8 @@ if (isset($_POST['add_todo']) && isset($_SESSION['userid'])) {
     
     if ($stmt->execute()) {
         $message = "To-do added successfully!";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
     } else {
         $message = "Error adding to-do.";
     }
@@ -109,55 +111,64 @@ if (isset($_SESSION['userid'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo App - Login</title>
+    <title>To-Do WebApp</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <h1>Todo Application</h1>
+     <!--<h1>Todo Application</h1>-->
 
     <?php if (isset($message)) { echo "<p>$message</p>"; } ?>
 
     <?php if (!isset($_SESSION['userid'])) { ?>
         <!-- Login Form -->
         <form action="todo.php" method="POST">
-            <label for="username">Username:</label>
-            <input type="text" name="username" id="username" required><br><br>
+            <label for="username">Benutzername:</label>
+            <input type="text" name="username" id="username" required>
 
             <label for="password">Password:</label>
-            <input type="password" name="password" id="password" required><br><br>
+            <input type="password" name="password" id="password" required>
 
-            <button type="submit" name="login">Login</button>
-        </form>
-    <?php } else { ?>
-        <!-- Logout Button -->
-        <form action="todo.php" method="POST">
-            <button type="submit" name="logout">Logout</button>
-        </form>
+            <button type="submit" name="login">&#10144</button>
+        </form> 
+        <?php } ?>
+    
 
-        <h2>Your To-Do List</h2>
-
+       
         <!-- Form to Add a New Todo -->
+        <?php if (isset($_SESSION['userid'])) { ?>
         <form action="todo.php" method="POST">
-            <label for="todo">New To-Do:</label>
-            <input type="text" name="todo" id="todo" required><br><br>
+            <label for="todo"></label>
+            <input type="text" placeholder="To-Do eintragen..." name="todo" id="todo" required>
 
-            <button type="submit" name="add_todo">Add To-Do</button>
+            <button type="submit" name="add_todo">&#10144</button>
         </form>
 
         <?php if (count($todos_result) > 0) { ?>
             <ul>
                 <?php foreach ($todos_result as $todo_data) { ?>
-                    <li>
-                        <?php echo htmlspecialchars($todo_data['Datum']) . " - " . htmlspecialchars($todo_data['todo']); ?>
-                        <a href="#" class="delete-btn" data-id="<?php echo $todo_data['id']; ?>">×</a>
-                    </li>
+                <ul>
+                    <a href="#" class="delete-btn" data-id="<?php echo $todo_data['id']; ?>">×</a>  
+                    <?php echo htmlspecialchars($todo_data['Datum']) . " - " . htmlspecialchars($todo_data['todo']); ?>
+                </ul>  
                 <?php } ?>
             </ul>
-    <?php   } else {
-            echo "<p>No data found</p>";
+        <?php } else {
+            echo "<p>Keine Einträge</p>";
         }
         ?>
-    <?php } ?>
+        <div style="display: flex; gap: 10px;">
+        <!-- Alle To-Dos Löschen Button -->
+        <form action="todo.php" method="POST">
+            <button type="submit" name="DelAll">alle TO-DOs löschen</button>
+        </form>
+
+             
+        <!-- Logout Button -->
+        
+        <form action="todo.php" method="POST">
+            <button type="submit" name="logout">Logout</button>
+        </form> </div>
+        <?php } ?>
 
     <script>
         $(document).on('click', '.delete-btn', function(e) {
